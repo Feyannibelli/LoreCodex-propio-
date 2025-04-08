@@ -1,11 +1,12 @@
 package com.lorecodex.backend.service;
 
+import com.lorecodex.backend.dto.request.UpdateUserRequest;
 import com.lorecodex.backend.model.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserService extends UserDetailsService {
@@ -17,7 +18,7 @@ public interface UserService extends UserDetailsService {
     Optional<User> getUserByUsername(String username);
     User createUser(User user);
     User updateUser(Integer id, User user);
+    User updateUserDetails(Integer id, UpdateUserRequest request);
     void deleteUser(Integer id);
-    Iterable<User> getAllUsers();
-
+    List<User> getAllUsers();
 }
