@@ -1,12 +1,10 @@
 package com.lorecodex.backend.service.serviceImpl;
 
-import com.lorecodex.backend.dto.request.UpdateUserRequest;
 import com.lorecodex.backend.model.User;
 import com.lorecodex.backend.repository.UserRepository;
 import com.lorecodex.backend.service.UserService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
@@ -14,11 +12,9 @@ import java.util.Optional;
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -48,35 +44,6 @@ public class UserServiceImpl implements UserService {
             return userRepository.save(user);
         }
         throw new RuntimeException("User not found");
-    }
-
-    @Override
-    public User updateUserDetails(Integer id, UpdateUserRequest request) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Validar si el nuevo nombre de usuario ya existe (si se está cambiando)
-        if (request.getUsername() != null && !request.getUsername().equals(user.getUsername())) {
-            if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-                throw new RuntimeException("Username already exists");
-            }
-            user.setUsername(request.getUsername());
-        }
-
-        // Validar si el nuevo email ya existe (si se está cambiando)
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-                throw new RuntimeException("Email already exists");
-            }
-            user.setEmail(request.getEmail());
-        }
-
-        // Actualizar contraseña si se proporciona
-        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-        }
-
-        return userRepository.save(user);
     }
 
     @Override
