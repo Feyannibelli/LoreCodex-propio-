@@ -1,25 +1,37 @@
 FROM eclipse-temurin:21-jdk
 
-# Configuramos el directorio de trabajo dentro del contenedor
+# Set working directory
 WORKDIR /app
 
-# Copiamos los archivos de Gradle y el código fuente
+# Copy Gradle configuration files first for better caching
 COPY build.gradle settings.gradle gradlew ./
 COPY gradle gradle
+
+# Make Gradle wrapper executable
+RUN chmod +x ./gradlew
+
+# Copy source code
 COPY src src
 COPY .envEmpty .env
 
-# Damos permisos al script de Gradle Wrapper y construimos la aplicación
-RUN chmod +x ./gradlew
-RUN ./gradlew build -x test
+# Build the application (with more detailed output)
+RUN ./gradlew build -x test --info
 
-# Copiamos el JAR generado
-COPY build/libs/*.jar app.jar
+# Verify the JAR exists before copying
+RUN find /app -name "*.jar" | grep -q . || (echo "No JAR found after build!" && exit 1)
 
+# Copy JAR file from the correct location
+RUN mkdir -p build/libs
+RUN find /app -name "*.jar" -exec cp {} build/libs/app.jar \;
+
+# Debug: List contents of build directory
+RUN ls -la build/libs/
+
+# Set debugging options
 ENV JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 
-# Exponemos el puerto (asegúrate de que coincida con el de tu aplicación)
+# Expose ports
 EXPOSE 8080 5005
 
-# Comando para ejecutar el servicio
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run the application
+ENTRYPOINT ["java", "-jar", "build/libs/app.jar"]
