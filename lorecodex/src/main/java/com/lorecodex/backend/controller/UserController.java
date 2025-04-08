@@ -3,14 +3,17 @@ package com.lorecodex.backend.controller;
 import com.lorecodex.backend.dto.request.LoginRequest;
 import com.lorecodex.backend.dto.request.RegisterRequest;
 import com.lorecodex.backend.dto.request.UpdateUserRequest;
-import com.lorecodex.backend.dto.response.JwtAuthenticationResponse;
+import com.lorecodex.backend.dto.request.DeleteAccountRequest;
 import com.lorecodex.backend.dto.response.UserResponse;
+import com.lorecodex.backend.model.Role;
 import com.lorecodex.backend.model.User;
 import com.lorecodex.backend.service.AuthenticationService;
 import com.lorecodex.backend.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 public class UserController {
     private final AuthenticationService authenticationService;
     private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
@@ -84,7 +88,35 @@ public class UserController {
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .roles(user.getRoles().stream().map(role -> role.getName()).collect(Collectors.toSet()))
+                .roles(user.getRoles().stream().map(Role::getName).collect(Collectors.toSet()))
                 .build();
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_ADMIN') or #id == authentication.principal.id")
+    public ResponseEntity<?> deleteUser(@PathVariable Integer id, @RequestBody DeleteAccountRequest request) {
+        try {
+            // Obtener el usuario actual
+            User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+            // Verificar que corresponda al ID solicitado o sea un admin
+            if (!currentUser.getId().equals(id) && currentUser.getRoles().stream()
+                    .noneMatch(r -> r.getName().equals("ROLE_ADMIN"))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            // Verificar contraseña para usuarios que eliminan su propia cuenta
+            if (currentUser.getId().equals(id)) {
+                if (!passwordEncoder.matches(request.getPassword(), currentUser.getPassword())) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("La contraseña proporcionada no es correcta");
+                }
+            }
+
+            userService.deleteUser(id);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 }
