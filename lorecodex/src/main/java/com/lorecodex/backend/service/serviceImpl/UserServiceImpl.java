@@ -3,9 +3,12 @@ package com.lorecodex.backend.service.serviceImpl;
 import com.lorecodex.backend.model.User;
 import com.lorecodex.backend.repository.UserRepository;
 import com.lorecodex.backend.service.UserService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -38,10 +41,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User updateUser(Integer id, User user) {
+    public void updateUser(Integer id, User user) {
         if (userRepository.existsById(id)) {
             user.setId(id);
-            return userRepository.save(user);
+            userRepository.save(user);
+            return;
         }
         throw new RuntimeException("User not found");
     }
@@ -61,5 +65,15 @@ public class UserServiceImpl implements UserService {
     public UserDetails loadUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+    }
+
+    @Override
+    public Integer getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if(authentication != null && authentication.isAuthenticated()) {
+            User currentUser = (User) authentication.getPrincipal();
+            return currentUser.getId();
+        }
+        throw new RuntimeException("User not authenticated");
     }
 }

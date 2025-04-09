@@ -9,12 +9,17 @@ import com.lorecodex.backend.model.User;
 import com.lorecodex.backend.dto.request.LoginRequest;
 import com.lorecodex.backend.service.AuthenticationService;
 import com.lorecodex.backend.service.JwtService;
+import com.lorecodex.backend.service.RoleService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -25,19 +30,51 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final RoleRepository roleRepository;
+    private final RoleService roleService;
+
+    @Value("${admin.username:admin}")
+    private String adminUsername;
+
+    @Value("${admin.password:admin123}")
+    private String adminPassword;
+
+    @Value("${admin.email:admin@lorecodex.com}")
+    private String adminEmail;
+
+    @PostConstruct
+    public void init() {
+        createAdminUserIfNotExists();
+    }
+
+    private void createAdminUserIfNotExists() {
+        Optional<User> existingAdmin = userRepository.findByUsername(adminUsername);
+
+        if (existingAdmin.isEmpty()) {
+            Role userRole = roleService.createRoleIfNotFound("ROLE_USER");
+            Role adminRole = roleService.createRoleIfNotFound("ROLE_ADMIN");
+
+            Set<Role> roles = new HashSet<>();
+            roles.add(userRole);
+            roles.add(adminRole);
+
+            User admin = User.builder()
+                    .username(adminUsername)
+                    .email(adminEmail)
+                    .password(passwordEncoder.encode(adminPassword))
+                    .roles(roles)
+                    .build();
+
+            userRepository.save(admin);
+            log.info("Usuario administrador creado: {}", adminUsername);
+        }
+    }
 
     @Override
     public JwtAuthenticationResponse register(RegisterRequest request) {
         validateRegisterRequest(request);
 
-        Role userRole = roleRepository.findByName("ROLE_USER")
-                .orElseGet(() -> {
-                    log.warn("ROLE_USER not found. Creating it automatically.");
-                    return roleRepository.save(new Role(null, "ROLE_USER", null));
-                });
+        Role userRole = roleService.createRoleIfNotFound("ROLE_USER");
 
-        //create and save user
         var user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
@@ -48,7 +85,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         userRepository.save(user);
         log.info("New user registered: {}", user.getUsername());
 
-        //generate JWT and return response
         return createJwtResponse(user);
     }
 
@@ -64,7 +100,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         log.info("User logged in: {}", user.getUsername());
 
-        return createJwtResponse(user);  //generate JWT and return response
+        return createJwtResponse(user);
     }
 
     private void validateRegisterRequest(RegisterRequest request) {
