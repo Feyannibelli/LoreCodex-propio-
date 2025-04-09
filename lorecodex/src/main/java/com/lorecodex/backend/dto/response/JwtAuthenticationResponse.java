@@ -1,6 +1,7 @@
 package com.lorecodex.backend.dto.response;
 
 import lombok.*;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -11,4 +12,5 @@ import lombok.*;
 public class JwtAuthenticationResponse {
     private String token;
     private Integer userId;
+    private Set<String> roles;
 }

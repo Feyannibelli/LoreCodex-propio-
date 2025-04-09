@@ -2,6 +2,12 @@ package com.lorecodex.backend.dto.request;
 
 import lombok.*;
 
+@Getter
+@Setter
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdminRoleRequest {
     private Integer userId;
     private boolean addRole;
